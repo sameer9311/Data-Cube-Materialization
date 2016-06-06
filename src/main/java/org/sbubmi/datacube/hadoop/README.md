@@ -23,11 +23,12 @@ For building the sample cube, two dimensions are considered - **city** and **apa
 and the measure **sum** will be applied to sum all the prices of all the records across both dimensions.
 
 * All the documents with the specified dimensions and fact are retrieved from the mongodb. The query output looks like :
-
-  { "city" : "SACRAMENTO", "type" : "Residential", "price" : 91002 }  <br /> 
-  { "city" : "RANCHO CORDOVA", "type" : "Condo", "price" : 94905 }  <br />
-  { "city" : "RIO LINDA", "type" : "Residential", "price" : 98937 }  <br />
+  ```
+  { "city" : "SACRAMENTO", "type" : "Residential", "price" : 91002 }  
+  { "city" : "RANCHO CORDOVA", "type" : "Condo", "price" : 94905 }  
+  { "city" : "RIO LINDA", "type" : "Residential", "price" : 98937 }  
   ...
+  ```
 
 * The retrieved documents are stored in the form of Map in java.
   * **key** is String concatenation of all the dimension values separated by "-" <br />
