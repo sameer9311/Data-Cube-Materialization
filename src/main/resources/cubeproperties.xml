@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<cubeproperties>
+
+	<dimension>
+		<name>City</name>
+		<columnname>city</columnname>
+	</dimension>
+
+	<dimension>
+		<name>ApartmentType</name>
+		<columnname>type</columnname>
+	</dimension>
+	<fact>price</fact>
+	<measure>sum</measure>
+	
+</cubeproperties>
