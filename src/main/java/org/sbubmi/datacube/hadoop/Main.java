@@ -9,6 +9,9 @@ import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.Job;
 import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
+import org.sbubmi.datacube.utils.CubeProperties;
+import org.sbubmi.datacube.utils.QueryDB;
+import org.sbubmi.datacube.utils.Utils;
 
 
 /**
@@ -23,7 +26,7 @@ import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
  */
  
 
-public class Main {
+class Main {
 	
 	public static void main(String[] args) throws IOException, ClassNotFoundException, InterruptedException
 	{
@@ -31,9 +34,9 @@ public class Main {
 		CubeProperties cubePropertyObj = CubeProperties.readCubeProperties();
 		
 		// Map of dbColumn name and the name appearing of that column in Cube
-		Map <String, String> dimensionMap = cubePropertyObj.dimensionMap;
-		String measure = cubePropertyObj.measure;
-		String fact = cubePropertyObj.fact;
+		Map <String, String> dimensionMap = cubePropertyObj.getDimensionMap();
+		String measure = cubePropertyObj.getMeasure();
+		String fact = cubePropertyObj.getFact();
 		
 		// Query the mongodb to retrieve the dimension fields and fact
 		QueryDB queryObj = new QueryDB();

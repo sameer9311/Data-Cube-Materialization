@@ -1,4 +1,4 @@
-package org.sbubmi.datacube.hadoop;
+package org.sbubmi.datacube.utils;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -13,9 +13,9 @@ import java.io.File;
 
 public class CubeProperties {
 	
-	Map<String, String> dimensionMap;
-	String measure;
-	String fact;
+	private Map<String, String> dimensionMap;
+	private String measure;
+	private String fact;
 	
 	/**  
 	 * 
@@ -90,6 +90,21 @@ public class CubeProperties {
 		return cubePropertyObject;
 	}
 
+	public Map<String, String> getDimensionMap() {
+		return dimensionMap;
+	}
+
+	public String getMeasure() {
+		return measure;
+	}
+
+	public String getFact() {
+		return fact;
+	}
+
+	
+	
+	
 	
 	
 	

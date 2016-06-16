@@ -1,4 +1,4 @@
-package org.sbubmi.datacube.hadoop;
+package org.sbubmi.datacube.utils;
 
 
 import java.util.Map;
