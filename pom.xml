@@ -5,11 +5,12 @@
   <version>1.0</version>
   
    <dependencies>
-       <dependency>
-		    <groupId>org.apache.hadoop</groupId>
-		    <artifactId>hadoop-client</artifactId>
-		    <version>2.6.0</version>
-       </dependency>
+   		<dependency>
+            <groupId>org.apache.spark</groupId>
+            <artifactId>spark-core_2.10</artifactId>
+            <version>1.6.1</version>
+        </dependency>
+       
        <dependency>
 		    <groupId>org.mongodb.mongo-hadoop</groupId>
 		    <artifactId>mongo-hadoop-core</artifactId>
@@ -20,6 +21,12 @@
 	        <artifactId>mongo-java-driver</artifactId>
 	        <version>3.2.2</version>
     	</dependency>
+    	<dependency>
+		    <groupId>org.apache.hadoop</groupId>
+		    <artifactId>hadoop-client</artifactId>
+		    <version>2.6.0</version>
+       </dependency>
+    	
     </dependencies>
     
   
