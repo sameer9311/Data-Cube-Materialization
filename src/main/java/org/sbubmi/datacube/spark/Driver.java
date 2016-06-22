@@ -6,9 +6,11 @@ import java.util.Set;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.spark.SparkConf;
 import org.apache.spark.api.java.JavaPairRDD;
+import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.api.java.function.Function;
 import org.apache.spark.api.java.function.Function2;
+import org.apache.spark.api.java.function.MapFunction;
 import org.apache.spark.api.java.function.PairFunction;
 import org.apache.spark.api.java.function.VoidFunction;
 import org.bson.BSONObject;
@@ -16,6 +18,8 @@ import org.sbubmi.datacube.utils.CubeProperties;
 import org.sbubmi.datacube.utils.QueryDB;
 
 import com.mongodb.BasicDBObject;
+import com.mongodb.BasicDBObjectBuilder;
+import com.mongodb.DBObject;
 import com.mongodb.hadoop.BSONFileOutputFormat;
 import com.mongodb.hadoop.MongoInputFormat;
 import com.mongodb.hadoop.MongoOutputFormat;
@@ -25,7 +29,7 @@ import scala.Tuple2;
 
 /**
  * Driver class of entire spark based cube computation. 
- * Makes calls to perform * the following actions : 
+ * Makes calls to perform the following actions : 
  * - read cube properties(dimensions,measures,facts)from XML file 
  * - query the mongodb for specified dimensions and facts and store in RDD 
  * - extract dimensions and fact from the RDD to generate key,value Pairs 
@@ -71,9 +75,19 @@ public class Driver {
 
 		SparkConf conf = new SparkConf().setAppName("org.sparkexample.MongoSpark2").setMaster("local");
 		JavaSparkContext sc = new JavaSparkContext(conf);
+		
+		/*JavaRDD<BSONObject> documentsRetreived = sc.newAPIHadoopRDD(mongodbConfig,
+	            MongoInputFormat.class, Object.class, BSONObject.class).map(
+	            new Function<Tuple2<Object, BSONObject>, BSONObject>() {
+	                @Override
+	                public BSONObject call(Tuple2<Object, BSONObject> doc) throws Exception {
+	                    return doc._2;
+	                }
+	            }
+	        );*/
 
 		// Create an RDD backed by the MongoDB collection.
-		JavaPairRDD<Object, BSONObject> documents = sc.newAPIHadoopRDD(mongodbConfig, // Configuration
+		JavaPairRDD<Object, BSONObject> documentsRetreived = sc.newAPIHadoopRDD(mongodbConfig, // Configuration
 				MongoInputFormat.class, // InputFormat: read from a live cluster										
 				Object.class, // Key class
 				BSONObject.class // Value class
@@ -81,14 +95,35 @@ public class Driver {
 		
 		// We now need to need to extract dimensions and fact from each document by string manipulation
 		// and generate key value pair from it
-		// key is string concatenation of all dimensions
-		// value is respective fact value for those dimensions
-		JavaPairRDD<String, Integer> dimensionFactRDD = documents.mapToPair(DIMENSIONFACT_MAPPER);
+		// key is string concatenation of all dimensions, each dimension separated by "*"
+		// value is respective fact value for those set of dimensions
+		JavaPairRDD<String, Integer> dimensionFactRDD = documentsRetreived.mapToPair(DIMENSIONFACT_MAPPER);
 		
 		// We now need to perform groupby on the dimensions and fact
 		// i.e perform reduce operation on the keys
 		JavaPairRDD<String, Integer> groupedDimensionFactRDD = dimensionFactRDD.reduceByKey(DIMENSIONFACT_REDUCER);
-				
+		
+		// Convert the pairRDD into RDD with a tuple
+		JavaRDD<Tuple2<String,Integer>> dimFactTupleRDD = JavaRDD.fromRDD(JavaPairRDD.toRDD(groupedDimensionFactRDD), groupedDimensionFactRDD.classTag());
+		
+		// Create new RDD with the bson object and _id to store in mongodb
+		JavaPairRDD<Object, BSONObject> outputRDD = dimFactTupleRDD.mapToPair(DIMENSIONFACT_BSON_MAPPER);
+		
+		// Create a separate Configuration for saving data back to MongoDB.
+		Configuration outputConfig = new Configuration();
+		outputConfig.set("mongo.output.uri",
+				                 "mongodb://localhost:27017/output.mysalescube");
+
+		// Save this RDD as a Hadoop "file".
+		// The path argument is unused; all documents will go to 'mongo.output.uri'.
+		outputRDD.saveAsNewAPIHadoopFile(
+				    "file:///this-is-completely-unused",
+				    Object.class,
+				    BSONObject.class,
+				    MongoOutputFormat.class,
+				    outputConfig
+				);		
+
 		
 	}
 	
@@ -138,6 +173,25 @@ public class Driver {
 			return a + b;
 		}
 	};	
+	
+	/**
+	 * Creates a new RDD to with bson object and _id from the tuple to store in mongodb
+	 */
+	private static final PairFunction<Tuple2<String, Integer>, Object, BSONObject> DIMENSIONFACT_BSON_MAPPER = 
+			new PairFunction<Tuple2<String, Integer>, Object, BSONObject>() {
+		
+		public Tuple2<Object, BSONObject> call(Tuple2<String, Integer> dimFactTuple) throws Exception {
+            DBObject doc = BasicDBObjectBuilder.start()
+                .add("dimensions", dimFactTuple._1)
+                .add("fact_value", dimFactTuple._2)                
+                .get();
+            // null key means an ObjectId will be generated on insert
+            return new Tuple2<Object, BSONObject>(null, doc);
+        }
+		
+	};
+	
+	
 
 
 }
