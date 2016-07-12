@@ -99,9 +99,20 @@ public class Driver {
 		// value is respective fact value for those set of dimensions
 		JavaPairRDD<String, Integer> dimensionFactRDD = documentsRetreived.mapToPair(DIMENSIONFACT_MAPPER);
 		
+			
 		// We now need to perform groupby on the dimensions and fact
 		// i.e perform reduce operation on the keys
 		JavaPairRDD<String, Integer> groupedDimensionFactRDD = dimensionFactRDD.reduceByKey(DIMENSIONFACT_REDUCER);
+		
+		groupedDimensionFactRDD.foreach(
+				new VoidFunction<Tuple2<String, Integer>>() {
+                    public void call(Tuple2<String, Integer> T) {
+                        
+                    	System.out.println(T._1 + T._2.toString());
+                    }
+                }
+				
+				);
 		
 		// Convert the pairRDD into RDD with a tuple
 		JavaRDD<Tuple2<String,Integer>> dimFactTupleRDD = JavaRDD.fromRDD(JavaPairRDD.toRDD(groupedDimensionFactRDD), groupedDimensionFactRDD.classTag());

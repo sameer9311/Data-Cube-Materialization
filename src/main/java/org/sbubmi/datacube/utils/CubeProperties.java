@@ -44,7 +44,7 @@ public class CubeProperties {
 				
 		try {
 
-			File fXmlFile = new File("src/main/resources/cubeproperties.xml");
+			File fXmlFile = new File("/media/sameer/Educational/JAVA projects/workspace/SBUBMIdatacube/src/main/resources/cubeproperties.xml");
 			DocumentBuilderFactory dbFactory = DocumentBuilderFactory.newInstance();
 			DocumentBuilder dBuilder = dbFactory.newDocumentBuilder();
 			Document doc = dBuilder.parse(fXmlFile);
