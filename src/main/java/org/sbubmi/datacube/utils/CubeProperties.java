@@ -13,9 +13,9 @@ import java.io.File;
 
 public class CubeProperties {
 	
-	private Map<String, String> dimensionMap;
-	private String measure;
-	private String fact;
+	public static Map<String, String> dimensionMap;
+	public static  String measure;
+	public static String fact;
 	
 	/**  
 	 * 

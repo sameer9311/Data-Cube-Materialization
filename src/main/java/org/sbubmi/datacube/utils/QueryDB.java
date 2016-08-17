@@ -41,9 +41,9 @@ public class QueryDB {
 
 		try {
 			Mongo mongo = new Mongo("localhost", 27017);
-			DB db = mongo.getDB("salesdb");// Use DB
+			DB db = mongo.getDB("randdb1");// Use DB
 
-			DBCollection collection = db.getCollection("sales");
+			DBCollection collection = db.getCollection("randcoll1");
 
 			DBObject query = new BasicDBObject(); // can be used to specify matching conditions if any
 			DBObject field = new BasicDBObject(); // stores the fields to be retrieved from the query

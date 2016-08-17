@@ -1,6 +1,7 @@
 package org.sbubmi.datacube.spark;
 
 import java.util.Map;
+import java.util.Scanner;
 import java.util.Set;
 
 import org.apache.hadoop.conf.Configuration;
@@ -14,6 +15,7 @@ import org.apache.spark.api.java.function.MapFunction;
 import org.apache.spark.api.java.function.PairFunction;
 import org.apache.spark.api.java.function.VoidFunction;
 import org.bson.BSONObject;
+import org.jets3t.service.impl.soap.axis._2006_03_01.User;
 import org.sbubmi.datacube.utils.CubeProperties;
 import org.sbubmi.datacube.utils.QueryDB;
 
@@ -39,7 +41,13 @@ import scala.Tuple2;
 public class Driver {
 	
 		
+	/**
+	 * @param args
+	 */
 	public static void main(String[] args) {
+		
+		long startTime = System.currentTimeMillis();
+
 		// Read the dimensions of the cube, the fact and the measure to be
 		// applied, from XML file
 		CubeProperties cubePropertyObj = CubeProperties.readCubeProperties();
@@ -48,21 +56,41 @@ public class Driver {
 		Map<String, String> dimensionMap = cubePropertyObj.getDimensionMap();
 		String measure = cubePropertyObj.getMeasure();
 		String fact = cubePropertyObj.getFact();
-
+		
 		// Set configuration options for the MongoDB Hadoop Connector.
-		Configuration mongodbConfig = new Configuration();
+		//Configuration mongodbConfig = new Configuration();
 
 		// MongoInputFormat allows us to read from a live MongoDB instance.
 		// We could also use BSONFileInputFormat to read BSON snapshots.
-		mongodbConfig.set("mongo.job.input.format", "com.mongodb.hadoop.MongoInputFormat");
+		//mongodbConfig.set("mongo.job.input.format", "com.mongodb.hadoop.MongoInputFormat");
 
 		// MongoDB connection string naming a collection to use.
 		// If using BSON, use "mapred.input.dir" to configure the directory
 		// where BSON files are located instead.
-		mongodbConfig.set("mongo.input.uri", "mongodb://localhost:27017/salesdb.sales");
+		//mongodbConfig.set("mongo.input.uri", "mongodb://localhost:27017/randdb1.randcoll1");
+		
+		//SparkConf conf = new SparkConf().setAppName("org.sparkexample.MongoSpark2").setMaster("local");
+				
+		Configuration mongodbConfig = new Configuration();
+		mongodbConfig.set("mongo.job.input.format", "com.mongodb.hadoop.MongoInputFormat");
+		mongodbConfig.set("mongo.input.uri", "mongodb://localhost:27017/input.results");
+	    SparkConf conf = new SparkConf().setMaster("local").setAppName("org.sparkexample.MongoSpark2");
+
+	    JavaSparkContext sc = new JavaSparkContext(conf);		
 
 		// Now query the mongodb database 
-		// We need to set which fields(dimensions) to retrieve from query
+	    // We can also provide the conditions on the fields
+	    // This will be provided by the user at runtime
+	    
+	    Scanner conditionScanner = new Scanner(System.in);
+	    System.out.println("Enter the conditions for the query:");	 
+	    System.out.print("For e.g {'color':'blue','features.Area':{$lt:100}}\nEnter {} for no condition\nCondition:");
+	    String condtions = conditionScanner.nextLine();
+	    mongodbConfig.set("mongo.input.query", condtions);
+	    conditionScanner.close();  
+	    
+	    
+		// We need to set which fields(dimensions) to retrieve/project/select from query
 		// We need to mention the dimensions as well as the fact
 		String fields = "{";
 		for (String Key : dimensionMap.keySet()) {
@@ -72,9 +100,7 @@ public class Driver {
 		fields = fields.concat("_id:0}"); // set to 1 if we want to retrieve _id also
 											
 		mongodbConfig.set("mongo.input.fields", fields);
-
-		SparkConf conf = new SparkConf().setAppName("org.sparkexample.MongoSpark2").setMaster("local");
-		JavaSparkContext sc = new JavaSparkContext(conf);
+		
 		
 		/*JavaRDD<BSONObject> documentsRetreived = sc.newAPIHadoopRDD(mongodbConfig,
 	            MongoInputFormat.class, Object.class, BSONObject.class).map(
@@ -93,18 +119,38 @@ public class Driver {
 				BSONObject.class // Value class
 		);
 		
+		documentsRetreived.foreach(
+				new VoidFunction<Tuple2<Object, BSONObject>>() {
+                    public void call(Tuple2<Object, BSONObject> T) {
+                        
+                    	System.out.println(T._1.toString() + T._2.toString());
+                    }
+                }
+				
+				);
+		
+		
 		// We now need to need to extract dimensions and fact from each document by string manipulation
 		// and generate key value pair from it
-		// key is string concatenation of all dimensions, each dimension separated by "*"
+		// key is string concatenation of all dimensions, each dimension separated by "$"
 		// value is respective fact value for those set of dimensions
-		JavaPairRDD<String, Integer> dimensionFactRDD = documentsRetreived.mapToPair(DIMENSIONFACT_MAPPER);
+		JavaPairRDD<String, Double> dimensionFactRDD = documentsRetreived.mapToPair(DIMENSIONFACT_MAPPER);
 		
-			
+		/*dimensionFactRDD.foreach(
+		new VoidFunction<Tuple2<String, Double>>() {
+            public void call(Tuple2<String, Double> T) {
+                
+            	System.out.println("Mapper output "+T._1.toString() +" v "+ T._2.toString());
+            }
+        }
+		
+		);*/
+		
 		// We now need to perform groupby on the dimensions and fact
 		// i.e perform reduce operation on the keys
-		JavaPairRDD<String, Integer> groupedDimensionFactRDD = dimensionFactRDD.reduceByKey(DIMENSIONFACT_REDUCER);
+		JavaPairRDD<String, Double> groupedDimensionFactRDD = dimensionFactRDD.reduceByKey(DIMENSIONFACT_REDUCER);
 		
-		groupedDimensionFactRDD.foreach(
+		/*groupedDimensionFactRDD.foreach(
 				new VoidFunction<Tuple2<String, Integer>>() {
                     public void call(Tuple2<String, Integer> T) {
                         
@@ -112,10 +158,10 @@ public class Driver {
                     }
                 }
 				
-				);
+				);*/
 		
 		// Convert the pairRDD into RDD with a tuple
-		JavaRDD<Tuple2<String,Integer>> dimFactTupleRDD = JavaRDD.fromRDD(JavaPairRDD.toRDD(groupedDimensionFactRDD), groupedDimensionFactRDD.classTag());
+		JavaRDD<Tuple2<String,Double>> dimFactTupleRDD = JavaRDD.fromRDD(JavaPairRDD.toRDD(groupedDimensionFactRDD), groupedDimensionFactRDD.classTag());
 		
 		// Create new RDD with the bson object and _id to store in mongodb
 		JavaPairRDD<Object, BSONObject> outputRDD = dimFactTupleRDD.mapToPair(DIMENSIONFACT_BSON_MAPPER);
@@ -134,7 +180,10 @@ public class Driver {
 				    MongoOutputFormat.class,
 				    outputConfig
 				);		
-
+		
+		long endTime   = System.currentTimeMillis();
+		long totalTime = endTime - startTime;
+		System.out.println("Total Execution Time in MiliSeconds is "+totalTime);
 		
 	}
 	
@@ -149,25 +198,40 @@ public class Driver {
 	 * 				  second element is respective fact Integer value for those dimensions
 	 */
 
-	private static final PairFunction<Tuple2<Object, BSONObject>, String, Integer> DIMENSIONFACT_MAPPER = 
-			new PairFunction<Tuple2<Object, BSONObject>, String, Integer>() {
+	private static final PairFunction<Tuple2<Object, BSONObject>, String, Double> DIMENSIONFACT_MAPPER = 
+			new PairFunction<Tuple2<Object, BSONObject>, String, Double>() {
 
-		public Tuple2<String, Integer> call(Tuple2<Object, BSONObject> tuple) throws Exception {
+		public Tuple2<String, Double> call(Tuple2<Object, BSONObject> tuple) throws Exception {
 
 			String dimensions = ""; 	//this will hold all dimensions
 			BSONObject bsonobj = tuple._2;	//get bsonobject from query 
 			Set<String> dimFactsSets = bsonobj.keySet();	//names of all dimensions and fact
 			int len = dimFactsSets.size();
+			
 			String[] dimensionsFacts = dimFactsSets.toArray(new String[dimFactsSets.size()]);
-			for (int i = 0; i < len - 1; i++) {
+			
+			String fact = CubeProperties.fact;			
+			Double factValue = 0.0;
+		    
+			
+			for (int i = 0; i < len; i++) {
 				
-				// for each dimension, concat its value
-				//separate each value of dimension by a "*"
-				dimensions = dimensions.concat(bsonobj.get(dimensionsFacts[i]).toString().concat("*")); 
+				
+				if(!dimensionsFacts[i].equals(fact))
+				{
+					// for each dimension, concat its value
+					//separate each value of dimension by a "*"
+					dimensions = dimensions.concat(bsonobj.get(dimensionsFacts[i]).toString().concat("$")); 
+				}
+				else
+				{
+					factValue = Double.parseDouble(bsonobj.get(dimensionsFacts[i]).toString());
+					//System.out.println("the fact is "+fact+" and value is "+factValue);
+				}
+				
 				
 			}
-			return new Tuple2<String, Integer>(dimensions,
-					Integer.parseInt(bsonobj.get(dimensionsFacts[len - 1]).toString()));
+			return new Tuple2<String, Double>(dimensions,factValue);
 		}
 
 	};
@@ -177,10 +241,10 @@ public class Driver {
 	 * i.e after performing a group by
 	 */
 
-	private static final Function2<Integer, Integer, Integer> DIMENSIONFACT_REDUCER = 
-			new Function2<Integer, Integer, Integer>() {
+	private static final Function2<Double, Double, Double> DIMENSIONFACT_REDUCER = 
+			new Function2<Double, Double, Double>() {
 
-		public Integer call(Integer a, Integer b) throws Exception {
+		public Double call(Double a, Double b) throws Exception {
 			return a + b;
 		}
 	};	
@@ -188,10 +252,11 @@ public class Driver {
 	/**
 	 * Creates a new RDD to with bson object and _id from the tuple to store in mongodb
 	 */
-	private static final PairFunction<Tuple2<String, Integer>, Object, BSONObject> DIMENSIONFACT_BSON_MAPPER = 
-			new PairFunction<Tuple2<String, Integer>, Object, BSONObject>() {
+	private static final PairFunction<Tuple2<String, Double>, Object, BSONObject> DIMENSIONFACT_BSON_MAPPER = 
+			new PairFunction<Tuple2<String, Double>, Object, BSONObject>() {
 		
-		public Tuple2<Object, BSONObject> call(Tuple2<String, Integer> dimFactTuple) throws Exception {
+		public Tuple2<Object, BSONObject> call(Tuple2<String, Double> dimFactTuple) throws Exception {
+			
             DBObject doc = BasicDBObjectBuilder.start()
                 .add("dimensions", dimFactTuple._1)
                 .add("fact_value", dimFactTuple._2)                
@@ -201,6 +266,11 @@ public class Driver {
         }
 		
 	};
+	
+	private static final Integer foo(Integer a)
+	{
+		return 0;
+	}
 	
 	
 

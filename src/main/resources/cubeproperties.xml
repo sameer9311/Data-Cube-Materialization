@@ -2,15 +2,19 @@
 <cubeproperties>
 
 	<dimension>
-		<name>City</name>
-		<columnname>city</columnname>
+		<name>features.Area</name>
+		<columnname>features.Area</columnname>
 	</dimension>
 
 	<dimension>
-		<name>ApartmentType</name>
-		<columnname>type</columnname>
+		<name>color</name>
+		<columnname>color</columnname>
 	</dimension>
-	<fact>price</fact>
+	<dimension>
+		<name>h</name>
+		<columnname>h</columnname>
+	</dimension>
+	<fact>y</fact>
 	<measure>sum</measure>
 	
 </cubeproperties>
